@@ -1,0 +1,42 @@
+<BuildGraph xmlns="http://www.epicgames.com/BuildGraph" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.epicgames.com/BuildGraph ../Schema.xsd" >
+    <Option Name="AgentType" DefaultValue="IncrementalWin64" Description="Agent Type"/>
+    <Option Name="PackageNetworkPath" DefaultValue="" Description="Network path where packages are sent. Double backslash it, or it won't work. Also, no trailing slashes."/>
+
+    <EnvVar Name="EGS_ORGANIZATION_ID" DefaultValue=""/>
+    <EnvVar Name="EGS_CLIENT_ID" DefaultValue=""/>
+    <EnvVar Name="EGS_CLIENT_SECRET" DefaultValue=""/>
+
+    <Option Name="ProductId" DefaultValue="" Description="Product to upload for."/>
+    <Option Name="ArtifactId" DefaultValue="" Description="Artifact to upload for."/>
+    <Option Name="AppExecutable" DefaultValue="" Description="Executable to launch."/>
+    <Option Name="AppArguments" DefaultValue="" Description="App arguments"/>
+
+    <Property Name="TargetPlatforms" Value=""/>
+    <Property Name="AllEGSPlatforms" Value="Mac+Windows"/>
+
+    <Option Name="VersionString" DefaultValue="" Description="MANDATORY. Unique Version String for this deployment."/>
+
+    <Option Name="WithWin64" DefaultValue="false" Description="Publish Windows (x64) build to Steam"/>
+    <Property Name="TargetPlatforms" Value="$(TargetPlatforms)+Windows" If="$(WithWin64) and !ContainsItem('$(TargetPlatforms)', 'Win64', '+')"/>
+
+    <Option Name="WithMac" DefaultValue="false" Description="Publish Mac (x64, ARM) build to Steam"/>
+    <Property Name="TargetPlatforms" Value="$(TargetPlatforms)+Mac" If="$(WithMac) and !ContainsItem('$(TargetPlatforms)', 'Mac', '+')"/>
+
+    <Agent Name="Publish" Type="$(AgentType)">
+        <Node Name="Publish">
+            <ForEach Name="TargetPlatform" Values="$(TargetPlatforms)" Separator="+">
+                <Error Message="EGS only supports Windows and Mac platforms." If="!ContainsItem('$(AllEGSPlatforms)','$(TargetPlatform)','+')"/>
+                <Error Message="Set a unique version string for this release!" If="'$(VersionString)' == ''"/>
+                <Error Message="You must supply a ProductId." If="'$(ProductId)' == ''"/>
+                <Error Message="You must supply an ArtifactId." If="'$(ArtifactId)' == ''"/>
+                <Error Message="You must supply an Executable." If="'$(AppExecutable)' == ''"/>
+
+                <Spawn Exe="$(RootDir)/Engine/Binaries/Win64/BuildPatchTool.exe" Arguments='-OrganizationId="$(EGS_ORGANIZATION_ID)" -ProductId="$(ProductId)" -ArtifactId="$(ArtifactId)" -ClientId="$(EGS_CLIENT_ID)" -ClientSecret="$(EGS_CLIENT_SECRET)" -mode=UploadBinary -BuildRoot="$(PackageNetworkPath)\\$(TargetPlatform)\\Packages" -CloudDir="Temp" -BuildVersion="$(VersionString)-$(TargetPlatform)" -AppLaunch="$(AppExecutable)" -AppArgs="$(AppArguments)"'/>
+            </ForEach>
+        </Node>
+    </Agent>
+
+    <Label Name="EGS" Category="Storefronts" Requires="Publish"/>
+    <Label Name="Win64" Category="Platforms" Requires="Publish" If="$(WithWin64)"/>
+    <Label Name="Mac" Category="Platforms" Requires="Publish" If="$(WithMac)"/>
+</BuildGraph>
